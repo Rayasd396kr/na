@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>AR Navigation</title>
+  <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+  <script type='text/javascript' src='https://raw.githack.com/AR-js-org/AR.js/master/three.js/build/ar-threex-location-only.js'></script>
+  <script type='text/javascript' src='https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js'></script>
+  <style>
+    #arSceneContainer {
+      width: 400px;
+      height: 300px;
+    }
+    #arScene {
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <button onclick="startARNavigation()">开始导航</button>
+  <div id="arSceneContainer" style="display: none;">
+    <a-scene id="arScene" arjs='sourceType: webcam; videoTexture: true; debugUIEnabled: false' renderer='antialias: true; alpha: true' embedded>
+      <a-camera gps-new-camera='gpsMinDistance: 5'></a-camera>
+      <!-- 目标点位 -->
+      <a-entity id="target" material='color: green' geometry='primitive: box' gps-new-entity-place="latitude: 24.15148407022633; longitude: 120.68230227354864" scale="10 10 10"></a-entity>
+      <!-- 方向箭头 -->
+      <a-entity id="directionArrow" geometry="primitive: cone; radiusTop: 0.1; radiusBottom: 0; height: 0.2" material="color: red" position="0 0.1 -1"></a-entity>
+    </a-scene>
+  </div>
+
+  <script>
+    function startARNavigation() {
+      var arSceneContainer = document.getElementById('arSceneContainer');
+      if (arSceneContainer.style.display === 'none') {
+        arSceneContainer.style.display = 'block';
+        
+        navigateToTarget(); // 开始导航
+      } else {
+        arSceneContainer.style.display = 'none';
+      }
+    }
+
+    function navigateToTarget() {
+      // 获取用户当前位置
+      navigator.geolocation.getCurrentPosition(function(position) {
+        var userLatitude = position.coords.latitude;
+        var userLongitude = position.coords.longitude;
+
+        // 获取目标点位的位置
+        var targetLatitude = 24.151025939583285; // 替换为目标点位的纬度
+        var targetLongitude = 120.68141029301923; // 替换为目标点位的经度
+
+        // 计算用户当前位置和目标点位之间的方向
+        var direction = calculateDirection(userLatitude, userLongitude, targetLatitude, targetLongitude);
+
+        // 更新方向箭头的朝向
+        var directionArrow = document.getElementById('directionArrow');
+        directionArrow.setAttribute('rotation', '0 ' + direction + ' 0');
+        console.log('Direction:', direction);
+      });
+    }
+
+    // 计算两点间的方向
+    function calculateDirection(userLat, userLon, targetLat, targetLon) {
+      var dLon = (targetLon - userLon);
+      var y = Math.sin(dLon) * Math.cos(targetLat);
+      var x = Math.cos(userLat) * Math.sin(targetLat) - Math.sin(userLat) * Math.cos(targetLat) * Math.cos(dLon);
+      var brng = Math.atan2(y, x);
+      brng = brng * (180 / Math.PI);
+      brng = (brng + 360) % 360;
+      return brng;
+    }
+    
+  </script>
+</body>
+</html>
