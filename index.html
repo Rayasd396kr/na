@@ -107,10 +107,11 @@
         var intermediateLon = userLon + (targetLon - userLon) * (i / numWaypoints);
         var intermediateEntity = document.createElement('a-entity');
         intermediateEntity.setAttribute('id', 'waypoint' + i);
-        intermediateEntity.setAttribute('material', 'color: blue');
-        intermediateEntity.setAttribute('geometry', 'primitive: cone');
+        intermediateEntity.setAttribute('material', 'color: red;side: double');
+        intermediateEntity.setAttribute('geometry', 'primitive: triangle');
+        intermediateEntity.setAttribute('rotation', '0 0 0');
         intermediateEntity.setAttribute('gps-new-entity-place', 'latitude: ' + intermediateLat + '; longitude: ' + intermediateLon);
-        intermediateEntity.setAttribute('scale', '10 10 10');
+        intermediateEntity.setAttribute('scale', '1 1 1');
         intermediateEntity.setAttribute('visible', 'true');
         document.getElementById('arScene').appendChild(intermediateEntity);
       }
