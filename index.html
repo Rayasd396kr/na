@@ -5,72 +5,144 @@
   <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
   <script type='text/javascript' src='https://raw.githack.com/AR-js-org/AR.js/master/three.js/build/ar-threex-location-only.js'></script>
   <script type='text/javascript' src='https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js'></script>
-  <style>
-    #arSceneContainer {
-      width: 400px;
-      height: 300px;
-    }
-    #arScene {
-      width: 100%;
-      height: 100%;
-    }
-  </style>
 </head>
-<body>
-  <button onclick="startARNavigation()">开始导航</button>
-  <div id="arSceneContainer" style="display: none;">
-    <a-scene id="arScene" arjs='sourceType: webcam; videoTexture: true; debugUIEnabled: false' renderer='antialias: true; alpha: true' embedded>
-      <a-camera gps-new-camera='gpsMinDistance: 5'></a-camera>
-      <!-- 目标点位 -->
-      <a-entity id="target" material='color: green' geometry='primitive: box' gps-new-entity-place="latitude: 24.15148407022633; longitude: 120.68230227354864" scale="10 10 10"></a-entity>
-      <!-- 方向箭头 -->
-      <a-entity id="directionArrow" geometry="primitive: cone; radiusTop: 0.1; radiusBottom: 0; height: 0.2" material="color: red" position="0 0.1 -1"></a-entity>
-    </a-scene>
+<body onload="getLocation()">
+  <div style="position: absolute; z-index: 1;">
+    <!-- 控制按钮 -->
+    <button onclick="navigateToTarget('target1')">目標點1</button>
+    <button onclick="navigateToTarget('target2')">目標點2</button>
+    <p id="distanceDisplay"></p> <!-- 显示距离的元素 -->
   </div>
 
+  <a-scene id="arScene" arjs='sourceType: webcam; videoTexture: true; debugUIEnabled: false' renderer='antialias: true; alpha: true'>
+    <a-entity id="cameraRig" gps-entity-place="latitude: 0; longitude: 0" gps-entity-place-loaded="">
+      <a-camera id="camera" gps-new-camera='gpsMinDistance: 5' position="0 0 0"></a-camera>
+    </a-entity>
+    <!-- 导航点位 -->
+    <a-entity id="target1" material='color: blue' geometry='primitive: box' gps-new-entity-place="latitude: 24.15148407022633; longitude: 120.68230227354864" scale="10 10 10" visible="false"></a-entity>
+    <a-entity id="target2" material='color: blue' geometry='primitive: box' gps-new-entity-place="latitude: 24.151025939583285; longitude: 120.68141029301923" scale="10 10 10" visible="false"></a-entity>
+  </a-scene>
+
   <script>
-    function startARNavigation() {
-      var arSceneContainer = document.getElementById('arSceneContainer');
-      if (arSceneContainer.style.display === 'none') {
-        arSceneContainer.style.display = 'block';
-        
-        navigateToTarget(); // 开始导航
+   
+
+    var userLatitude;
+    var userLongitude;
+    // 获取用户当前位置
+    function getLocation() {
+      if (navigator.geolocation) {
+        // 使用 watchPosition 方法实时监测用户位置的变化
+        navigator.geolocation.watchPosition(function(position) {
+          userLatitude = position.coords.latitude;
+          userLongitude = position.coords.longitude;
+          
+          // 获取位置信息后执行导航功能
+          updateNavigation(currentTarget);
+        });
       } else {
-        arSceneContainer.style.display = 'none';
+        alert("Geolocation is not supported by this browser.");
       }
     }
 
-    function navigateToTarget() {
-      // 获取用户当前位置
-      navigator.geolocation.getCurrentPosition(function(position) {
-        var userLatitude = position.coords.latitude;
-        var userLongitude = position.coords.longitude;
 
-        // 获取目标点位的位置
-        var targetLatitude = 24.151025939583285; // 替换为目标点位的纬度
-        var targetLongitude = 120.68141029301923; // 替换为目标点位的经度
+    /// 存储目标点的信息
+    var targetCoordinates = {
+        'target1': { latitude: 24.15148407022633, longitude: 120.68230227354864 },
+        'target2': { latitude: 24.151025939583285, longitude: 120.68141029301923 }
+    };
 
-        // 计算用户当前位置和目标点位之间的方向
-        var direction = calculateDirection(userLatitude, userLongitude, targetLatitude, targetLongitude);
+    // 当前目标点位
+    var currentTarget = null;
 
-        // 更新方向箭头的朝向
-        var directionArrow = document.getElementById('directionArrow');
-        directionArrow.setAttribute('rotation', '0 ' + direction + ' 0');
-        console.log('Direction:', direction);
+    // 导航至目标点位
+    function navigateToTarget(targetId) {
+      // 隐藏当前目标点位
+      if (currentTarget) {
+        document.getElementById(currentTarget).setAttribute('visible', false);
+      }
+
+      // 显示新的目标点位
+      currentTarget = targetId;
+      document.getElementById(targetId).setAttribute('visible', true);
+
+      // 添加多个目标点并更新导航
+      updateNavigation(targetId);
+    }
+    
+    // 更新导航
+    function updateNavigation(targetId) {
+      // 获取目标点位的位置
+      var targetLatitude = targetCoordinates[targetId].latitude;
+      var targetLongitude = targetCoordinates[targetId].longitude;
+
+      // 清除所有之前的导航点
+      clearWaypoints();
+
+      // 添加多个目标点
+      var distance = addWaypoints(userLatitude, userLongitude, targetLatitude, targetLongitude);
+
+      // 显示距离
+      document.getElementById('distanceDisplay').innerText = '距離為：' + distance.toFixed(2) + ' 公尺';
+
+      // 检查是否到达目标点
+      if (distance <= 10) { // 假设在10米范围内认为到达目标点
+        // 到达目标点，清除导航点
+        clearWaypoints();
+      }
+    }
+
+
+
+
+    // 添加多个目标点并返回距离
+    function addWaypoints(userLat, userLon, targetLat, targetLon) {
+      // 清除之前的导航点
+      clearWaypoints();
+
+      var distance = calculateDistance(userLat, userLon, targetLat, targetLon);
+      var numWaypoints = Math.ceil(distance / 10); // 假设每隔10米放置一个目标点
+
+      for (var i = 1; i <= numWaypoints; i++) {
+        var intermediateLat = userLat + (targetLat - userLat) * (i / numWaypoints);
+        var intermediateLon = userLon + (targetLon - userLon) * (i / numWaypoints);
+        var intermediateEntity = document.createElement('a-entity');
+        intermediateEntity.setAttribute('id', 'waypoint' + i);
+        intermediateEntity.setAttribute('material', 'color: blue');
+        intermediateEntity.setAttribute('geometry', 'primitive: cone');
+        intermediateEntity.setAttribute('gps-new-entity-place', 'latitude: ' + intermediateLat + '; longitude: ' + intermediateLon);
+        intermediateEntity.setAttribute('scale', '10 10 10');
+        intermediateEntity.setAttribute('visible', 'true');
+        document.getElementById('arScene').appendChild(intermediateEntity);
+      }
+
+      return distance;
+    }
+
+
+    // 清除所有导航点
+    function clearWaypoints() {
+      var waypoints = document.querySelectorAll('[id^="waypoint"]');
+      waypoints.forEach(function(waypoint) {
+        waypoint.parentNode.removeChild(waypoint);
       });
     }
 
-    // 计算两点间的方向
-    function calculateDirection(userLat, userLon, targetLat, targetLon) {
-      var dLon = (targetLon - userLon);
-      var y = Math.sin(dLon) * Math.cos(targetLat);
-      var x = Math.cos(userLat) * Math.sin(targetLat) - Math.sin(userLat) * Math.cos(targetLat) * Math.cos(dLon);
-      var brng = Math.atan2(y, x);
-      brng = brng * (180 / Math.PI);
-      brng = (brng + 360) % 360;
-      return brng;
+    // 计算两点间的距离
+    function calculateDistance(userLat, userLon, targetLat, targetLon) {
+      var R = 6371e3; // meters
+      var φ1 = userLat * Math.PI / 180;
+      var φ2 = targetLat * Math.PI / 180;
+      var Δφ = (targetLat - userLat) * Math.PI / 180;
+      var Δλ = (targetLon - userLon) * Math.PI / 180;
+
+      var a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+      var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+      var d = R * c;
+      return d;
     }
-    
   </script>
 </body>
 </html>
