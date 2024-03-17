@@ -30,6 +30,8 @@
     <a-scene id="arScene" arjs='sourceType: webcam; videoTexture: true; debugUIEnabled: false' renderer='antialias: true; alpha: true' embedded>
       <a-entity id="cameraRig" gps-entity-place="latitude: 0; longitude: 0" gps-entity-place-loaded="">
         <a-camera id="camera" gps-new-camera='gpsMinDistance: 5' position="0 0 0"></a-camera>
+        <!-- 新加的箭头更新组件 -->
+        <a-entity arrow-updater></a-entity>
       </a-entity>
       <!-- 导航点位 -->
       <a-entity id="target1" material='color: blue' geometry='primitive: box' gps-new-entity-place="latitude: 24.14977351688243; longitude: 120.68377231768088" scale="10 10 10" visible="false"></a-entity>
@@ -90,7 +92,7 @@
       }
     }
 
-   // 添加箭头指示器
+    // 添加箭头指示器
     function addArrowIndicator(userLat, userLon, targetLat, targetLon) {
       // 获取相机元素
       var cameraEl = document.getElementById('camera');
@@ -101,11 +103,11 @@
       arrowEntity.setAttribute('geometry', 'primitive: cone; radiusBottom: 0.1; height: 0.5');
       arrowEntity.setAttribute('material', 'color: green');
       arrowEntity.setAttribute('position', '0 0 -1'); // 放置在相机前方
-      arrowEntity.setAttribute('rotation', calculateArrowRotation(userLat, userLon, targetLat, targetLon) + ' 0 0');      
+      arrowEntity.setAttribute('rotation', '0 0 '+ calculateArrowRotation(userLat, userLon, targetLat, targetLon)); // 将旋转应用到 x 轴上
+      console.log(calculateArrowRotation(userLat, userLon, targetLat, targetLon))
       // 将箭头实体添加为相机的子实体
       cameraEl.appendChild(arrowEntity);
     }
-
 
     // 清除所有导航点
     function clearWaypoints() {
@@ -176,6 +178,22 @@
 
       return distance;
     }
+
+    // 在页面加载时绑定 tick 事件监听器
+    AFRAME.registerComponent('arrow-updater', {
+      tick: function () {
+        var cameraEl = document.getElementById('cameraRig');
+        var arrowEntity = document.getElementById('arrowIndicator');
+        if (!cameraEl || !arrowEntity) return;
+
+        var cameraPosition = cameraEl.object3D.getWorldPosition();
+        var targetPosition = new THREE.Vector3(0, 0, -1).applyMatrix4(cameraEl.object3D.matrixWorld);
+        var direction = new THREE.Vector3().subVectors(targetPosition, cameraPosition).normalize();
+        var angle = Math.atan2(direction.x, direction.z);
+        var rotationY = THREE.MathUtils.radToDeg(angle);
+        arrowEntity.setAttribute('rotation', '0 ' + rotationY + ' 0');
+      }
+    });
   </script>
 </body>
 </html>
